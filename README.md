@@ -48,7 +48,11 @@ import business "github.com/Golang-Tanzania/selcom-business-client"
    the server only; Selcom stores the matching public key.
 3. Ask Selcom to whitelist the public IP addresses that will call the API.
    Requests from other addresses are rejected with error `611`.
-4. For the sandbox, request a separate `api-key` and private key from Selcom.
+4. Register the **domain** your service calls from against the credential.
+   Every request must carry an `Origin` header matching it, or the gateway
+   answers 403 with error `617`. Pass it with `WithOrigin`. The sandbox does
+   not enforce this.
+5. For the sandbox, request a separate `api-key` and private key from Selcom.
 
 The debit account is resolved from the credentials, so there is no vendor id
 or float PIN to configure.
@@ -172,6 +176,7 @@ fmt.Println(export.Data.FileURL) // valid for one hour
 
 | Option | Effect |
 |--------|--------|
+| `WithOrigin(origin)` | Send the `Origin` header, e.g. `https://api.example.com`; must match the domain registered for the key (error 617). |
 | `WithBaseURL(url)` | Target the sandbox or another host. Default is production. |
 | `WithHTTPClient(hc)` | Use your own `*http.Client` for timeouts or proxies. |
 | `WithLogger(fn)` | Receive request start and completion events. Bodies and credentials are never logged. |
@@ -249,7 +254,10 @@ http.HandleFunc("/selcom/callback", func(w http.ResponseWriter, r *http.Request)
 ## Sandbox
 
 ```go
-cln, err := business.New(apiKey, keyPEM, business.WithBaseURL(business.SandboxBaseURL))
+cln, err := business.New(apiKey, keyPEM,
+	business.WithOrigin("https://api.example.com"),
+	business.WithBaseURL(business.SandboxBaseURL),
+)
 ```
 
 The portal lists the sandbox without a version path, but its endpoints live

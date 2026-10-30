@@ -21,6 +21,7 @@ const (
 	ErrCodeIPNotWhitelisted     = 611 // 403: requesting IP is not whitelisted for this credential.
 	ErrCodeMissingHeaders       = 612 // 400: api-key, timestamp or digest header missing.
 	ErrCodeInvalidAPIKey        = 613 // 401: API key invalid or deactivated (503 when the auth service is down).
+	ErrCodeOriginNotRegistered  = 617 // 403: no domain registered for the key, or the Origin header does not match it.
 	ErrCodeGeneral              = 621 // 400/404: generic error or resource not found.
 	ErrCodeInvalidSignature     = 631 // 401: digest does not verify.
 	ErrCodeStaleTimestamp       = 632 // 400: timestamp outside the ±5 minute window or malformed.
@@ -77,7 +78,7 @@ func (e *Error) IsDuplicate() bool {
 // timestamp or IP whitelisting rather than the transaction itself.
 func (e *Error) IsAuth() bool {
 	switch e.ErrorCode {
-	case ErrCodeIPNotWhitelisted, ErrCodeMissingHeaders, ErrCodeInvalidAPIKey, ErrCodeInvalidSignature, ErrCodeStaleTimestamp:
+	case ErrCodeIPNotWhitelisted, ErrCodeMissingHeaders, ErrCodeInvalidAPIKey, ErrCodeOriginNotRegistered, ErrCodeInvalidSignature, ErrCodeStaleTimestamp:
 		return true
 	}
 

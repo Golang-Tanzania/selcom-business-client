@@ -3,6 +3,15 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `WithOrigin` to send the `Origin` header the gateway requires, checked
+  against the domain registered for the API credential (error 617 when
+  missing or different; not enforced by the sandbox).
+- `ErrCodeOriginNotRegistered` (617), classified by `IsAuth`.
+
 ## [1.0.0] - 2026-10-27
 
 ### Added

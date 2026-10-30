@@ -61,6 +61,7 @@ type Logger func(ctx context.Context, msg string, args ...any)
 type Client struct {
 	baseURL    string
 	apiKey     string
+	origin     string
 	privateKey *rsa.PrivateKey
 	http       *http.Client
 	log        Logger
@@ -80,6 +81,14 @@ func WithBaseURL(u string) Option {
 			c.baseURL = u
 		}
 	}
+}
+
+// WithOrigin sets the Origin header sent with every request. The gateway
+// requires it and checks it against the domains registered for the API
+// credential in the portal (error 617 when missing or different), e.g.
+// "https://api.example.com". The sandbox does not enforce it.
+func WithOrigin(origin string) Option {
+	return func(c *Client) { c.origin = strings.TrimSpace(origin) }
 }
 
 // WithHTTPClient replaces the default HTTP client, e.g. to set a different
@@ -224,6 +233,9 @@ func (c *Client) do(req *http.Request, fields []field, v any) error {
 
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("api-key", c.apiKey)
+	if c.origin != "" {
+		req.Header.Set("Origin", c.origin)
+	}
 	req.Header.Set("timestamp", timestamp)
 	req.Header.Set("digest", digest)
 	req.Header.Set("signed-fields", signedFields(fields))

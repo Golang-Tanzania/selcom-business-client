@@ -148,6 +148,35 @@ func newTestClient(t *testing.T, srv *httptest.Server) *Client {
 	return cln
 }
 
+func TestOriginHeader(t *testing.T) {
+	var got captured
+
+	srv := verifyingServer(t, 200, `{"success":true,"error_code":1,"result":"SUCCESS","resultcode":"000","data":{"status":"COMPLETED"}}`, &got)
+	defer srv.Close()
+
+	cln, err := New("k", testKeyPEM(t, false), WithBaseURL(srv.URL), WithOrigin("https://api.example.com"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := cln.Status(context.Background(), "T1"); err != nil {
+		t.Fatal(err)
+	}
+
+	if got.headers.Get("Origin") != "https://api.example.com" {
+		t.Fatalf("Origin header: %q", got.headers.Get("Origin"))
+	}
+
+	// Without the option no Origin header is sent at all.
+	if _, err := newTestClient(t, srv).Status(context.Background(), "T1"); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := got.headers["Origin"]; ok {
+		t.Fatal("Origin must not be sent when not configured")
+	}
+}
+
 func TestNew(t *testing.T) {
 	if _, err := New("k", testKeyPEM(t, true)); err != nil {
 		t.Fatalf("pkcs8 key rejected: %v", err)
