@@ -12,6 +12,14 @@ All notable changes to this project are documented here. The format follows
   missing or different; not enforced by the sandbox).
 - `ErrCodeOriginNotRegistered` (617), classified by `IsAuth`.
 
+### Fixed
+
+- Lookup decoding: the gateway returns `data.account` as an object
+  describing the organisation's debit account (the portal documents a
+  string) and `operator` may be null. `LookupData.Account` is now a
+  `LookupAccount` that accepts both forms; the recipient's name remains in
+  `AccountName`.
+
 ## [1.0.0] - 2026-10-27
 
 ### Added

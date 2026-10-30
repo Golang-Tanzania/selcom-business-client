@@ -1,6 +1,7 @@
 package business
 
 import (
+	"bytes"
 	"encoding/json"
 	"unicode/utf8"
 )
@@ -168,19 +169,57 @@ type LookupInput struct {
 	Amount int
 }
 
-// Charge is one line of a lookup's charge breakdown. The portal does not
-// document its members, so it is kept as a generic object.
+// Charge is one line of a lookup's charge breakdown. The gateway returns
+// objects such as {"charge_name": "Charge", "charge_amount": "300"}; the
+// members are not documented, so it is kept generic.
 type Charge map[string]any
+
+// LookupAccount is the account member of a lookup response. The portal
+// documents it as the looked-up account number (a string), but the gateway
+// returns an object describing the organisation's own debit account:
+// {"account_number": "...", "account_name": "...", ...}. Both forms are
+// accepted; the recipient's name is in LookupData.AccountName either way.
+type LookupAccount struct {
+	Number string `json:"account_number"`
+	Name   string `json:"account_name"`
+}
+
+// UnmarshalJSON accepts either a JSON string (the documented form) or an
+// object (the observed form).
+func (a *LookupAccount) UnmarshalJSON(b []byte) error {
+	b = bytes.TrimSpace(b)
+	if len(b) == 0 || string(b) == "null" {
+		return nil
+	}
+
+	if b[0] == '"' {
+		var s string
+		if err := json.Unmarshal(b, &s); err != nil {
+			return err
+		}
+		*a = LookupAccount{Number: s}
+		return nil
+	}
+
+	type raw LookupAccount
+	var r raw
+	if err := json.Unmarshal(b, &r); err != nil {
+		return err
+	}
+	*a = LookupAccount(r)
+
+	return nil
+}
 
 // LookupData is data of a lookup response.
 type LookupData struct {
-	Bank         string   `json:"bank"`
-	Account      string   `json:"account"`
-	AccountName  string   `json:"accountName"`
-	Operator     string   `json:"operator"`
-	Charges      []Charge `json:"charges"`
-	TotalCharges float64  `json:"totalCharges"`
-	CategoryCode string   `json:"categoryCode"`
+	Bank         string        `json:"bank"`
+	Account      LookupAccount `json:"account"`
+	AccountName  string        `json:"accountName"` // The recipient's name.
+	Operator     string        `json:"operator"`    // May be null; empty then.
+	Charges      []Charge      `json:"charges"`
+	TotalCharges float64       `json:"totalCharges"`
+	CategoryCode string        `json:"categoryCode"`
 }
 
 // LookupResponse is returned by Lookup.

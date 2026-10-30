@@ -314,7 +314,7 @@ func TestLookup(t *testing.T) {
 		t.Fatalf("signed-fields: %s", sf)
 	}
 
-	if resp.Data.AccountName != "JANE DOE" || resp.TransactionID != "L1" || resp.Data.TotalCharges != 500 {
+	if resp.Data.AccountName != "JANE DOE" || resp.TransactionID != "L1" || resp.Data.TotalCharges != 500 || resp.Data.Account.Number != "0150" {
 		t.Fatalf("response: %+v", resp)
 	}
 
@@ -325,6 +325,28 @@ func TestLookup(t *testing.T) {
 
 	if sf := got.headers.Get("signed-fields"); sf != "bank,account,transId" {
 		t.Fatalf("signed-fields without amount: %s", sf)
+	}
+}
+
+func TestLookupDecodesObservedSandboxShape(t *testing.T) {
+	// Captured from the sandbox on 2026-10-30: account is an object describing
+	// the debit account, operator is null, charge amounts are strings.
+	body := `{"success":true,"error_code":1,"message":"Lookup successful.","transId":"ffbc9a10","result":"SUCCESS","resultcode":"000",
+		"data":{"bank":"TESTBANK","account":{"id":20,"organization_id":841,"account_number":"9094544901413","account_name":"Sandbox Test","created_at":"2026-10-30T13:38:09.000000Z","updated_at":"2026-10-30T13:38:09.000000Z"},
+		"accountName":"Sandbox Bank","operator":null,"charges":[{"charge_name":"Charge","charge_amount":"300"}],"totalCharges":300}}`
+
+	var got captured
+	srv := verifyingServer(t, 200, body, &got)
+	defer srv.Close()
+
+	resp, err := newTestClient(t, srv).Lookup(context.Background(), LookupInput{Bank: "TESTBANK", Account: "4081228192973", TransactionID: "L3"})
+	if err != nil {
+		t.Fatalf("lookup: %v", err)
+	}
+
+	if resp.Data.AccountName != "Sandbox Bank" || resp.Data.Account.Number != "9094544901413" || resp.Data.Account.Name != "Sandbox Test" ||
+		resp.Data.Operator != "" || resp.Data.TotalCharges != 300 || len(resp.Data.Charges) != 1 || resp.Data.Charges[0]["charge_amount"] != "300" {
+		t.Fatalf("decoded: %+v", resp.Data)
 	}
 }
 
