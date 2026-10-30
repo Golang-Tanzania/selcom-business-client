@@ -12,6 +12,10 @@ All notable changes to this project are documented here. The format follows
   missing or different; not enforced by the sandbox).
 - `ErrCodeOriginNotRegistered` (617), classified by `IsAuth`.
 
+- `sandbox_test.go` (build tag `sandbox`): a live contract test of every
+  endpoint against the sandbox that prints raw responses and asserts the
+  decoding.
+
 ### Fixed
 
 - Monetary fields (`amount`, `totalCharges`, `available_balance`, statement

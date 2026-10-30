@@ -251,6 +251,21 @@ http.HandleFunc("/selcom/callback", func(w http.ResponseWriter, r *http.Request)
 })
 ```
 
+## Sandbox contract test
+
+`sandbox_test.go` (build tag `sandbox`) runs every endpoint against the real
+sandbox with your credentials, prints each raw response and asserts the
+decoding. The portal's response tables have proven unreliable about types,
+so run it whenever Selcom changes something. The machine must be
+IP-whitelisted for the credential; each run pays 1 TZS to the sandbox's
+sample Selcom account.
+
+```sh
+SELCOM_SANDBOX_API_KEY=... SELCOM_SANDBOX_KEY_FILE=private.pem \
+SELCOM_SANDBOX_ORIGIN=https://api.example.com SELCOM_SANDBOX_ACCOUNT=... \
+go test -tags sandbox -run Sandbox -v .
+```
+
 ## Sandbox
 
 ```go
