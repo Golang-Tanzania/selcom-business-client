@@ -3,8 +3,52 @@ package business
 import (
 	"bytes"
 	"encoding/json"
+	"strconv"
 	"unicode/utf8"
 )
+
+// Number is a monetary value the gateway may send either as a JSON number
+// (as the portal documents) or as a numeric string (as the sandbox does for
+// some endpoints). It decodes both and otherwise behaves as a float64.
+type Number float64
+
+// UnmarshalJSON accepts a JSON number, a numeric string, or null.
+func (n *Number) UnmarshalJSON(b []byte) error {
+	b = bytes.TrimSpace(b)
+	if len(b) == 0 || string(b) == "null" {
+		return nil
+	}
+
+	if b[0] == '"' {
+		var s string
+		if err := json.Unmarshal(b, &s); err != nil {
+			return err
+		}
+		if s == "" {
+			return nil
+		}
+		f, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return err
+		}
+		*n = Number(f)
+		return nil
+	}
+
+	var f float64
+	if err := json.Unmarshal(b, &f); err != nil {
+		return err
+	}
+	*n = Number(f)
+
+	return nil
+}
+
+// Float64 returns the value as a float64.
+func (n Number) Float64() float64 { return float64(n) }
+
+// String formats the value without an exponent, e.g. "1000000" or "300.5".
+func (n Number) String() string { return strconv.FormatFloat(float64(n), 'f', -1, 64) }
 
 // Result codes carried in resultcode. See "API Response" in the portal.
 const (
@@ -140,11 +184,11 @@ func (in TransferInput) validate() error {
 
 // TransferData is data of a transfer response.
 type TransferData struct {
-	TransactionID string  `json:"trans_id"`
-	SelcomReceipt string  `json:"selcom_receipt"`
-	Status        string  `json:"status"` // ACCEPTED or COMPLETED
-	Amount        float64 `json:"amount"`
-	Currency      string  `json:"currency"`
+	TransactionID string `json:"trans_id"`
+	SelcomReceipt string `json:"selcom_receipt"`
+	Status        string `json:"status"` // ACCEPTED or COMPLETED
+	Amount        Number `json:"amount"`
+	Currency      string `json:"currency"`
 }
 
 // TransferResponse is returned by Transfer.
@@ -218,7 +262,7 @@ type LookupData struct {
 	AccountName  string        `json:"accountName"` // The recipient's name.
 	Operator     string        `json:"operator"`    // May be null; empty then.
 	Charges      []Charge      `json:"charges"`
-	TotalCharges float64       `json:"totalCharges"`
+	TotalCharges Number        `json:"totalCharges"`
 	CategoryCode string        `json:"categoryCode"`
 }
 
@@ -233,14 +277,14 @@ type LookupResponse struct {
 
 // StatusData is data of a status response.
 type StatusData struct {
-	TransactionID string  `json:"transId"`
-	Status        string  `json:"status"` // ACCEPTED, COMPLETED or FAILED
-	Amount        float64 `json:"amount"`
-	Currency      string  `json:"currency"`
-	SelcomReceipt string  `json:"selcomReceipt"`
-	TransDatetime string  `json:"transDatetime"` // Y-m-d H:i:s
-	SenderAccount string  `json:"senderAccount"`
-	SenderName    string  `json:"senderName"`
+	TransactionID string `json:"transId"`
+	Status        string `json:"status"` // ACCEPTED, COMPLETED or FAILED
+	Amount        Number `json:"amount"`
+	Currency      string `json:"currency"`
+	SelcomReceipt string `json:"selcomReceipt"`
+	TransDatetime string `json:"transDatetime"` // Y-m-d H:i:s
+	SenderAccount string `json:"senderAccount"`
+	SenderName    string `json:"senderName"`
 }
 
 // StatusResponse is returned by Status.
@@ -253,10 +297,10 @@ type StatusResponse struct {
 
 // BalanceData is data of a balance response.
 type BalanceData struct {
-	AccountNumber    string  `json:"account_number"`
-	Currency         string  `json:"currency"`
-	AvailableBalance float64 `json:"available_balance"`
-	Active           bool    `json:"active"`
+	AccountNumber    string `json:"account_number"`
+	Currency         string `json:"currency"`
+	AvailableBalance Number `json:"available_balance"`
+	Active           bool   `json:"active"`
 }
 
 // BalanceResponse is returned by Balance.
@@ -350,8 +394,8 @@ type StatementData struct {
 	FiltersApplied StatementFilters `json:"filters_applied"`
 	Account        StatementAccount `json:"account"`
 	Currency       string           `json:"currency"`
-	OpeningBalance float64          `json:"opening_balance"`
-	ClosingBalance float64          `json:"closing_balance"`
+	OpeningBalance Number           `json:"opening_balance"`
+	ClosingBalance Number           `json:"closing_balance"`
 	Pagination     Pagination       `json:"pagination"`
 	// Transactions are kept generic because the portal does not document
 	// their members.

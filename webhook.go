@@ -15,15 +15,15 @@ import (
 // successful transactions only, so a failure must be discovered via Status.
 type Callback struct {
 	// ReferenceID is the transId of the original Transfer.
-	ReferenceID            string  `json:"reference_id"`
-	Status                 string  `json:"status"` // always SUCCESS
-	SenderAccountName      string  `json:"sender_account_name"`
-	SenderAccountNumber    string  `json:"sender_account_number"`
-	RecipientName          string  `json:"recipient_name"`
-	RecipientAccountNumber string  `json:"recipient_account_number"`
-	Amount                 float64 `json:"amount"`
-	Charges                float64 `json:"charges"`
-	SelcomReceipt          string  `json:"selcom_receipt"`
+	ReferenceID            string `json:"reference_id"`
+	Status                 string `json:"status"` // always SUCCESS
+	SenderAccountName      string `json:"sender_account_name"`
+	SenderAccountNumber    string `json:"sender_account_number"`
+	RecipientName          string `json:"recipient_name"`
+	RecipientAccountNumber string `json:"recipient_account_number"`
+	Amount                 Number `json:"amount"`
+	Charges                Number `json:"charges"`
+	SelcomReceipt          string `json:"selcom_receipt"`
 }
 
 // maxCallbackBody bounds the callback body read.

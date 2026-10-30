@@ -328,6 +328,32 @@ func TestLookup(t *testing.T) {
 	}
 }
 
+func TestStatusDecodesStringAmounts(t *testing.T) {
+	// Captured from the sandbox on 2026-10-30: amount comes back as a string.
+	body := `{"success":true,"error_code":1,"message":"ok","result":"INPROGRESS","resultcode":"111",
+		"data":{"transId":"T1","status":"ACCEPTED","amount":"1000","currency":"TZS","selcomReceipt":"SBS-1","transDatetime":"2026-10-30 21:48:34"}}`
+
+	var got captured
+	srv := verifyingServer(t, 200, body, &got)
+	defer srv.Close()
+
+	resp, err := newTestClient(t, srv).Status(context.Background(), "T1")
+	if err != nil {
+		t.Fatalf("status: %v", err)
+	}
+
+	if resp.Data.Amount != 1000 || resp.Data.Amount.String() != "1000" || resp.Data.Status != TransactionAccepted {
+		t.Fatalf("decoded: %+v", resp.Data)
+	}
+
+	for in, want := range map[string]float64{`"300.5"`: 300.5, `250`: 250, `null`: 0, `""`: 0} {
+		var n Number
+		if err := json.Unmarshal([]byte(in), &n); err != nil || float64(n) != want {
+			t.Errorf("Number %s: got %v err %v", in, n, err)
+		}
+	}
+}
+
 func TestLookupDecodesObservedSandboxShape(t *testing.T) {
 	// Captured from the sandbox on 2026-10-30: account is an object describing
 	// the debit account, operator is null, charge amounts are strings.

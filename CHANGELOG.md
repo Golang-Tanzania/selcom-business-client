@@ -14,6 +14,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Monetary fields (`amount`, `totalCharges`, `available_balance`, statement
+  balances, callback `amount`/`charges`) are a `Number` type that decodes
+  either a JSON number or a numeric string; the sandbox sends strings on
+  the status query where the portal documents numbers.
 - Lookup decoding: the gateway returns `data.account` as an object
   describing the organisation's debit account (the portal documents a
   string) and `operator` may be null. `LookupData.Account` is now a
