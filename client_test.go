@@ -470,6 +470,7 @@ func TestGatewayErrors(t *testing.T) {
 	}{
 		{"validation", 422, `{"success":false,"error_code":651,"message":"Validation failed.","result":"FAIL","resultcode":"651","data":{"purpose":["The selected purpose is invalid."]}}`, 651, false, false, true},
 		{"duplicate", 422, `{"success":false,"error_code":643,"message":"Duplicate transaction detected.","result":"FAIL","resultcode":"643","data":[]}`, 643, false, true, false},
+		{"sandbox duplicate", 422, `{"success":false,"error_code":-34,"message":"Duplicate transaction detected.","result":"FAIL","resultcode":"-34","data":[]}`, -34, true, true, false},
 		{"bad signature", 401, `{"success":false,"error_code":631,"message":"digest does not match","result":"FAIL","resultcode":"631","data":[]}`, 631, true, false, false},
 		{"sandbox missing header", 400, `{"success":false,"error_code":-11,"message":"Missing required header: api-key.","data":[]}`, -11, true, false, false},
 		{"html from a proxy", 502, `<html>bad gateway</html>`, 0, false, false, false},
@@ -678,7 +679,7 @@ func TestStatementListing(t *testing.T) {
 		"account":{"account_name":"Acme Ltd","account_number":"01234 56789","sub_account_name":"Main"},
 		"currency":"TZS","opening_balance":500000,"closing_balance":450000,
 		"pagination":{"total":42,"per_page":10,"current_page":1,"last_page":5,"from":1,"to":10},
-		"transactions":[{"id":1,"amount":100}]}}`, &got)
+		"transactions":[{"id":56,"partyName":"Sandbox Bank","statusText":"Success","trans_datetime":"2026-10-30 22:02:07","trans_amount_type":"debit","transaction_amount":"1000","transaction_currency":"TZS","ara_receipt":"SBS-1"}]}}`, &got)
 	defer srv.Close()
 
 	resp, err := newTestClient(t, srv).Statement(context.Background(), StatementInput{AccountNumber: "0123", Preset: PresetThisMonth, PerPage: 10, Order: "DESC"})
@@ -692,6 +693,10 @@ func TestStatementListing(t *testing.T) {
 
 	if resp.Data.IsExport() || resp.Data.Pagination.Total != 42 || resp.Data.Account.AccountName != "Acme Ltd" || len(resp.Data.Transactions) != 1 || resp.Data.ClosingBalance != 450000 {
 		t.Fatalf("listing: %+v", resp.Data)
+	}
+
+	if tx := resp.Data.Transactions[0]; tx.Receipt != "SBS-1" || tx.Amount != 1000 || tx.AmountType != "debit" {
+		t.Fatalf("transaction: %+v", tx)
 	}
 }
 

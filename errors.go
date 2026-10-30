@@ -68,10 +68,23 @@ func (e *Error) FieldErrors() map[string][]string {
 	return m
 }
 
+// Sandbox error codes observed live; production uses the positive codes.
+const (
+	sandboxErrNotFound  = -20
+	sandboxErrDuplicate = -34
+	sandboxErrInvalid   = -40
+)
+
 // IsDuplicate reports whether the gateway rejected the request as a
-// duplicate of a recent transaction.
+// duplicate of a recent transaction (643, or -34 in the sandbox).
 func (e *Error) IsDuplicate() bool {
-	return e.ErrorCode == ErrCodeDuplicate
+	return e.ErrorCode == ErrCodeDuplicate || e.ErrorCode == sandboxErrDuplicate
+}
+
+// IsNotFound reports whether the gateway knows no transaction for the id
+// (621 with HTTP 404, or -20 in the sandbox).
+func (e *Error) IsNotFound() bool {
+	return (e.ErrorCode == ErrCodeGeneral && e.HTTPStatus == 404) || e.ErrorCode == sandboxErrNotFound
 }
 
 // IsAuth reports whether the failure is about credentials, signature,

@@ -182,13 +182,18 @@ func (in TransferInput) validate() error {
 	return nil
 }
 
-// TransferData is data of a transfer response.
+// TransferData is data of a transfer response. Amount is the total debited;
+// PrincipalAmount and TotalCharges split it into what the recipient gets and
+// the fee (observed on the gateway, not in the portal).
 type TransferData struct {
-	TransactionID string `json:"trans_id"`
-	SelcomReceipt string `json:"selcom_receipt"`
-	Status        string `json:"status"` // ACCEPTED or COMPLETED
-	Amount        Number `json:"amount"`
-	Currency      string `json:"currency"`
+	TransactionID   string `json:"trans_id"`
+	SelcomReceipt   string `json:"selcom_receipt"`
+	Status          string `json:"status"` // ACCEPTED or COMPLETED
+	Amount          Number `json:"amount"`
+	PrincipalAmount Number `json:"principal_amount"`
+	TotalCharges    Number `json:"total_charges"`
+	ChargesSummary  string `json:"charges_summary"` // e.g. "Fee 0, VAT 0, Excise Duty 0"
+	Currency        string `json:"currency"`
 }
 
 // TransferResponse is returned by Transfer.
@@ -275,7 +280,9 @@ type LookupResponse struct {
 
 // =============================================================================
 
-// StatusData is data of a status response.
+// StatusData is data of a status response. Amount is the total debited
+// including charges (the sandbox reports "1300.00" for a 1000 payout with a
+// 300 fee).
 type StatusData struct {
 	TransactionID string `json:"transId"`
 	Status        string `json:"status"` // ACCEPTED, COMPLETED or FAILED
@@ -298,6 +305,7 @@ type StatusResponse struct {
 // BalanceData is data of a balance response.
 type BalanceData struct {
 	AccountNumber    string `json:"account_number"`
+	AccountName      string `json:"account_name"`
 	Currency         string `json:"currency"`
 	AvailableBalance Number `json:"available_balance"`
 	Active           bool   `json:"active"`
@@ -391,19 +399,37 @@ type Pagination struct {
 // account, balances, pagination and transactions are set; for a file export
 // ExportType, FileURL and ExpiresAt are set instead.
 type StatementData struct {
-	FiltersApplied StatementFilters `json:"filters_applied"`
-	Account        StatementAccount `json:"account"`
-	Currency       string           `json:"currency"`
-	OpeningBalance Number           `json:"opening_balance"`
-	ClosingBalance Number           `json:"closing_balance"`
-	Pagination     Pagination       `json:"pagination"`
-	// Transactions are kept generic because the portal does not document
-	// their members.
-	Transactions []map[string]any `json:"transactions"`
+	FiltersApplied StatementFilters       `json:"filters_applied"`
+	Account        StatementAccount       `json:"account"`
+	Currency       string                 `json:"currency"`
+	OpeningBalance Number                 `json:"opening_balance"`
+	ClosingBalance Number                 `json:"closing_balance"`
+	Pagination     Pagination             `json:"pagination"`
+	Transactions   []StatementTransaction `json:"transactions"`
 
 	ExportType string `json:"export_type"`
 	FileURL    string `json:"file_url"`
 	ExpiresAt  string `json:"expires_at"` // ISO 8601; the link lives one hour.
+}
+
+// StatementTransaction is one statement line. The portal does not document
+// it; the members are those the gateway returns.
+type StatementTransaction struct {
+	ID            int    `json:"id"`
+	PartyName     string `json:"partyName"`
+	SubTitle      string `json:"subTitle"`   // e.g. "Send Money (API)"
+	StatusText    string `json:"statusText"` // e.g. "Success"
+	TransStatus   int    `json:"trans_status"`
+	TransDatetime string `json:"trans_datetime"`    // Y-m-d H:i:s
+	AmountType    string `json:"trans_amount_type"` // debit or credit
+	Amount        Number `json:"transaction_amount"`
+	Currency      string `json:"transaction_currency"`
+	Receipt       string `json:"ara_receipt"`
+	Balance       string `json:"balance"` // formatted, e.g. "TZS 0"
+	BatchID       int    `json:"batch_id"`
+	IsBulkPayment bool   `json:"isBulkPayment"`
+	ChargeStatus  string `json:"charge_status"`
+	APINote       string `json:"api_note"`
 }
 
 // IsExport reports whether the response carries a download link rather

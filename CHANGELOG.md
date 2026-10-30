@@ -16,6 +16,11 @@ All notable changes to this project are documented here. The format follows
   endpoint against the sandbox that prints raw responses and asserts the
   decoding.
 
+- `TransferData.PrincipalAmount`, `TotalCharges`, `ChargesSummary`;
+  `BalanceData.AccountName`; typed `StatementTransaction` (receipt in
+  `ara_receipt`, string amounts), all observed live on the gateway.
+- `Error.IsNotFound`; `IsDuplicate` also recognises the sandbox's `-34`.
+
 ### Fixed
 
 - Monetary fields (`amount`, `totalCharges`, `available_balance`, statement

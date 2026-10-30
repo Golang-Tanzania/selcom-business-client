@@ -264,6 +264,60 @@ func TestSandboxTransferAndStatus(t *testing.T) {
 	}
 }
 
+// TestSandboxAsyncRails pays the sample bank and wallet accounts, which the
+// gateway processes asynchronously (ACCEPTED, then settled later). It runs
+// only when SELCOM_SANDBOX_RAILS lists "bank" and/or "wallet" because each
+// run leaves in-progress transactions and costs sandbox balance.
+func TestSandboxAsyncRails(t *testing.T) {
+	cln, _ := sandboxClient(t)
+	ctx := context.Background()
+
+	rails := os.Getenv("SELCOM_SANDBOX_RAILS")
+	if rails == "" {
+		t.Skip("set SELCOM_SANDBOX_RAILS=bank,wallet to pay the asynchronous sample accounts")
+	}
+
+	cases := []struct {
+		name, code, account, holder string
+	}{
+		{"bank", envOr("SELCOM_SANDBOX_BANK", "TESTBANK"), envOr("SELCOM_SANDBOX_BANK_ACCOUNT", "4081228192973"), "Sandbox Bank"},
+		{"wallet", envOr("SELCOM_SANDBOX_WALLET", "TESTWALLET"), envOr("SELCOM_SANDBOX_WALLET_NUMBER", "2557018484163481"), "Sandbox Wallet"},
+	}
+
+	for _, tc := range cases {
+		if !bytes.Contains([]byte(rails), []byte(tc.name)) {
+			continue
+		}
+
+		t.Run(tc.name, func(t *testing.T) {
+			tid := newTransID()
+			in := TransferInput{TransactionID: tid, RecipientFiCode: tc.code, RecipientAccount: tc.account, RecipientName: tc.holder, Amount: 1000, Purpose: PurposePayment}
+
+			raw(t, cln, http.MethodPost, "/transaction/process", in, nil)
+
+			// The raw call consumed tid; send the typed call with a new one.
+			in.TransactionID = newTransID()
+
+			resp, err := cln.Transfer(ctx, in)
+			if err != nil {
+				t.Fatalf("transfer %s: %v", tc.name, err)
+			}
+
+			t.Logf("transfer %s: result=%s code=%s status=%s receipt=%s amount=%s principal=%s charges=%s (%s)",
+				tc.name, resp.Result, resp.ResultCode, resp.Data.Status, resp.Data.SelcomReceipt, resp.Data.Amount, resp.Data.PrincipalAmount, resp.Data.TotalCharges, resp.Data.ChargesSummary)
+
+			time.Sleep(2 * time.Second)
+
+			st, err := cln.Status(ctx, in.TransactionID)
+			if err != nil {
+				t.Fatalf("status %s: %v", tc.name, err)
+			}
+
+			t.Logf("status %s after 2s: result=%s code=%s status=%s amount=%s final=%v", tc.name, st.Result, st.ResultCode, st.Data.Status, st.Data.Amount, st.IsFinal())
+		})
+	}
+}
+
 func TestSandboxStatement(t *testing.T) {
 	cln, account := sandboxClient(t)
 	ctx := context.Background()
@@ -283,8 +337,12 @@ func TestSandboxStatement(t *testing.T) {
 		resp.Data.Account.AccountNumber, resp.Data.OpeningBalance, resp.Data.ClosingBalance, resp.Data.Pagination.Total, len(resp.Data.Transactions))
 
 	if len(resp.Data.Transactions) > 0 {
-		b, _ := json.MarshalIndent(resp.Data.Transactions[0], "", "  ")
-		t.Logf("first transaction object:\n%s", b)
+		tx := resp.Data.Transactions[0]
+		if tx.Receipt == "" || tx.Amount == 0 || tx.TransDatetime == "" {
+			b, _ := json.MarshalIndent(tx, "", "  ")
+			t.Fatalf("statement transaction decoded incompletely:\n%s", b)
+		}
+		t.Logf("first transaction: %s %s %s %s receipt=%s", tx.TransDatetime, tx.AmountType, tx.Amount, tx.Currency, tx.Receipt)
 	}
 
 	exp, err := cln.Statement(ctx, StatementInput{AccountNumber: account, Preset: PresetToday, ExportType: ExportCSV})
