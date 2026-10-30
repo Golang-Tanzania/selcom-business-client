@@ -16,6 +16,31 @@ Standard library only. Go 1.23 or later.
 > the legacy Selcom Pay gateway; use
 > [`selcompay-client`](https://github.com/Golang-Tanzania/selcompay-client) for those.
 
+## Validation status
+
+Validated against Selcom's **sandbox** on 30 October 2026 with real
+credentials: request signing and the `Origin` check are accepted, and
+balance, recipient lookup, transfer (synchronous Selcom-to-Selcom and
+asynchronous bank), transaction status, duplicate detection, unknown-id
+handling, statement listing and export all decode correctly from the
+gateway's actual responses. Several of those differ from the portal's
+tables (object instead of string, string instead of number, undocumented
+members); the models follow what the gateway sends, and the
+[sandbox contract test](#sandbox-contract-test) lets you re-verify with your
+own credentials in minutes.
+
+Not yet observed, so verify in your own rollout:
+
+- A production call. Production additionally enforces the registered
+  `Origin` domain and the IP whitelist; both are supported.
+- An asynchronous payout reaching `COMPLETED` or `FAILED`; the sandbox
+  left bank payouts at `ACCEPTED`, so the settle path is covered by tests
+  against the documented responses only.
+- A real callback delivery; `ParseCallback` is tested against the
+  documented payload.
+- Mobile wallet destinations; the sandbox's wallet sample was not accepted
+  during validation.
+
 ## Contents
 
 - [Installation](#installation)
