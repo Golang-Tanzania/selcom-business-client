@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -44,6 +45,46 @@ func (n *Number) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// Code is a gateway error_code. The sandbox sends it as a JSON number and
+// production as a string, so both are accepted, as is null. A string that is
+// not a number (an unknown future code) decodes as 0 rather than failing the
+// whole response.
+type Code int
+
+// UnmarshalJSON accepts a JSON number, a string, or null.
+func (c *Code) UnmarshalJSON(b []byte) error {
+	b = bytes.TrimSpace(b)
+	if len(b) == 0 || string(b) == "null" {
+		*c = 0
+		return nil
+	}
+
+	if b[0] == '"' {
+		var s string
+		if err := json.Unmarshal(b, &s); err != nil {
+			return err
+		}
+
+		n, err := strconv.Atoi(strings.TrimSpace(s))
+		if err != nil {
+			*c = 0
+			return nil
+		}
+
+		*c = Code(n)
+		return nil
+	}
+
+	var f float64
+	if err := json.Unmarshal(b, &f); err != nil {
+		return err
+	}
+
+	*c = Code(int(f))
+
+	return nil
+}
+
 // Float64 returns the value as a float64.
 func (n Number) Float64() float64 { return float64(n) }
 
@@ -68,7 +109,7 @@ const (
 // envelope is the common response shape.
 type envelope struct {
 	Success    bool            `json:"success"`
-	ErrorCode  int             `json:"error_code"`
+	ErrorCode  Code            `json:"error_code"`
 	Message    string          `json:"message"`
 	Result     string          `json:"result"`
 	ResultCode string          `json:"resultcode"`
@@ -82,7 +123,7 @@ type envelope struct {
 // instead until IsFinal reports true.
 type Outcome struct {
 	Success    bool   `json:"success"`
-	ErrorCode  int    `json:"error_code"`
+	ErrorCode  Code   `json:"error_code"`
 	Message    string `json:"message"`
 	Result     string `json:"result"`
 	ResultCode string `json:"resultcode"`

@@ -726,3 +726,66 @@ func TestEnvelopeDecoding(t *testing.T) {
 		t.Fatalf("decoded: %+v", resp)
 	}
 }
+
+// Production sends error_code as a string; the sandbox as a number.
+func TestStringErrorCodes(t *testing.T) {
+	t.Run("success envelope", func(t *testing.T) {
+		var got captured
+		srv := verifyingServer(t, 200, `{"success":true,"error_code":"1","message":"Balance fetched successfully.","result":"SUCCESS","resultcode":"000",
+			"data":{"account_number":"5529111488816","currency":"TZS","available_balance":"2500","active":true}}`, &got)
+		defer srv.Close()
+
+		resp, err := newTestClient(t, srv).Balance(context.Background(), "5529111488816")
+		if err != nil {
+			t.Fatalf("balance: %v", err)
+		}
+		if resp.ErrorCode != 1 || resp.Data.AvailableBalance != 2500 || !resp.IsSuccess() {
+			t.Fatalf("response: %+v", resp)
+		}
+	})
+
+	t.Run("error envelope", func(t *testing.T) {
+		var got captured
+		srv := verifyingServer(t, 403, `{"success":false,"error_code":"617","message":"Origin not allowed.","result":"FAIL","resultcode":"617","data":[]}`, &got)
+		defer srv.Close()
+
+		_, err := newTestClient(t, srv).Balance(context.Background(), "1")
+
+		var apiErr *Error
+		if !errors.As(err, &apiErr) || apiErr.ErrorCode != ErrCodeOriginNotRegistered || apiErr.Message != "Origin not allowed." {
+			t.Fatalf("err: %#v", err)
+		}
+	})
+
+	t.Run("non-numeric code does not fail the response", func(t *testing.T) {
+		var got captured
+		srv := verifyingServer(t, 200, `{"success":true,"error_code":"OK","message":"m","result":"SUCCESS","resultcode":"000","data":{"account_number":"1","available_balance":5}}`, &got)
+		defer srv.Close()
+
+		resp, err := newTestClient(t, srv).Balance(context.Background(), "1")
+		if err != nil || resp.ErrorCode != 0 || resp.Data.AvailableBalance != 5 {
+			t.Fatalf("resp %+v err %v", resp, err)
+		}
+	})
+
+	t.Run("null code", func(t *testing.T) {
+		var got captured
+		srv := verifyingServer(t, 200, `{"success":true,"error_code":null,"message":"m","result":"SUCCESS","resultcode":"000","data":{}}`, &got)
+		defer srv.Close()
+
+		if _, err := newTestClient(t, srv).Balance(context.Background(), "1"); err != nil {
+			t.Fatalf("err %v", err)
+		}
+	})
+}
+
+func TestDecodeErrorShowsBody(t *testing.T) {
+	var got captured
+	srv := verifyingServer(t, 200, `{"success":true,"result":"SUCCESS","data":{"available_balance":{"weird":true}}}`, &got)
+	defer srv.Close()
+
+	_, err := newTestClient(t, srv).Balance(context.Background(), "1")
+	if err == nil || !strings.Contains(err.Error(), `"weird":true`) {
+		t.Fatalf("err %v: want the response body in the message", err)
+	}
+}

@@ -3,6 +3,24 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.0] - 2026-10-31
+
+### Fixed
+
+- Production sends `error_code` as a JSON string (the sandbox sends a
+  number), which made every production response fail to decode with
+  "cannot unmarshal string into ... error_code of type int". It is now
+  decoded from a number, a numeric string or null; an unrecognised string
+  decodes as 0 instead of failing the response.
+- Decoding errors include the first 256 bytes of the response body, so an
+  unexpected shape shows what the gateway actually said.
+
+### Changed
+
+- `Outcome.ErrorCode` is now of type `Code` (an `int`). Comparisons with
+  constants are unaffected; code that assigns it to an `int` variable needs
+  `int(resp.ErrorCode)`. `Error.ErrorCode` stays `int`.
+
 ## [1.1.0] - 2026-10-30
 
 Validated against the Selcom sandbox; see the README's "Validation status"

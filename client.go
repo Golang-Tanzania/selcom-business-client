@@ -270,7 +270,7 @@ func (c *Client) do(req *http.Request, fields []field, v any) error {
 func decodeResponse(data []byte, v any) error {
 	var members map[string]json.RawMessage
 	if err := json.Unmarshal(data, &members); err != nil {
-		return fmt.Errorf("client: decoding response: %w", err)
+		return fmt.Errorf("client: decoding response: %w: body %s", err, truncate(data, maxErrorBody))
 	}
 
 	if d := bytes.TrimSpace(members["data"]); len(d) == 0 || d[0] != '{' {
@@ -283,7 +283,7 @@ func decodeResponse(data []byte, v any) error {
 	}
 
 	if err := json.Unmarshal(data, v); err != nil {
-		return fmt.Errorf("client: decoding response: %w", err)
+		return fmt.Errorf("client: decoding response: %w: body %s", err, truncate(data, maxErrorBody))
 	}
 
 	return nil
@@ -316,7 +316,7 @@ func decodeError(status int, data []byte) error {
 
 	return &Error{
 		HTTPStatus: status,
-		ErrorCode:  env.ErrorCode,
+		ErrorCode:  int(env.ErrorCode),
 		Message:    env.Message,
 		Result:     env.Result,
 		ResultCode: env.ResultCode,
